@@ -110,6 +110,69 @@ curl https://<云托管服务域名>/api/count
 curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://<云托管服务域名>/api/count
 ```
 
+
+### `POST /api/download`
+
+传入视频链接，服务端使用 `yt-dlp` 下载视频，并返回标题、时长、文件名等信息。
+
+#### 请求参数
+
+- `url`：`string` 类型，必填，视频链接
+- `format`：`string` 类型，选填，yt-dlp 格式选择，默认 `bv*+ba/b`
+- `audioOnly`：`boolean` 类型，选填，设为 `true` 时只下载音频并转为 mp3
+
+##### 请求参数示例
+
+```json
+{
+  "url": "https://www.youtube.com/watch?v=xxxx",
+  "format": "bv*+ba/b"
+}
+```
+
+#### 响应结果
+
+- `code`：错误码
+- `data.title`：视频标题
+- `data.duration`：视频时长，单位秒
+- `data.durationString`：视频时长文本
+- `data.filename`：下载后的文件名
+- `data.downloadPath`：已下载文件访问路径
+
+##### 响应结果示例
+
+```json
+{
+  "code": 0,
+  "data": {
+    "id": "xxxx",
+    "title": "视频标题",
+    "duration": 120,
+    "durationString": "2:00",
+    "uploader": "作者",
+    "webpageUrl": "https://www.youtube.com/watch?v=xxxx",
+    "ext": "mp4",
+    "filename": "xxxx.mp4",
+    "size": 1024000,
+    "downloadPath": "/api/files/xxxx.mp4"
+  }
+}
+```
+
+#### 调用示例
+
+```bash
+curl -X POST \
+  -H 'content-type: application/json' \
+  -d '{"url":"https://www.youtube.com/watch?v=xxxx"}' \
+  https://<云托管服务域名>/api/download
+```
+
+
+### `GET /api/files/<filename>`
+
+下载 `/api/download` 已保存的视频文件。
+
 ## 使用注意
 如果不是通过微信云托管控制台部署模板代码，而是自行复制/下载模板代码后，手动新建一个服务并部署，需要在「服务设置」中补全以下环境变量，才可正常使用，否则会引发无法连接数据库，进而导致部署失败。
 - MYSQL_ADDRESS
