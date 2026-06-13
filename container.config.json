@@ -27,6 +27,7 @@
 	"executeSQLs":[
 		"CREATE DATABASE IF NOT EXISTS flask_demo;",
 		"USE flask_demo;",
-		"CREATE TABLE IF NOT EXISTS `Counters` (`id` int(11) NOT NULL AUTO_INCREMENT, `count` int(11) NOT NULL DEFAULT 1, `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`)) ENGINE = InnoDB DEFAULT CHARSET = utf8;"
+		"CREATE TABLE IF NOT EXISTS `Counters` (`id` int(11) NOT NULL AUTO_INCREMENT, `count` int(11) NOT NULL DEFAULT 1, `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`)) ENGINE = InnoDB DEFAULT CHARSET = utf8;",
+		"CREATE TABLE IF NOT EXISTS `DownloadRecords` (`id` int(11) NOT NULL AUTO_INCREMENT, `openid` varchar(128) NOT NULL, `inputText` text, `extractUrl` text, `status` varchar(32) NOT NULL DEFAULT 'processing', `errorMsg` text, `videoId` varchar(128) DEFAULT NULL, `title` text, `thumbnail` text, `duration` int(11) DEFAULT NULL, `durationString` varchar(64) DEFAULT NULL, `resolution` varchar(64) DEFAULT NULL, `uploader` varchar(255) DEFAULT NULL, `webpageUrl` text, `originalUrl` text, `downloadUrl` text, `ext` varchar(32) DEFAULT NULL, `filename` varchar(255) DEFAULT NULL, `size` bigint DEFAULT 0, `fileUrl` text, `downloadPath` text, `downloadCount` int(11) NOT NULL DEFAULT 0, `extractedAt` datetime NOT NULL, `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (`id`), KEY `idx_openid_extractedAt` (`openid`,`extractedAt`)) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;"
 	]    
 }

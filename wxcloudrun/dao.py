@@ -3,7 +3,7 @@ import logging
 from sqlalchemy.exc import OperationalError
 
 from wxcloudrun import db
-from wxcloudrun.model import Counters
+from wxcloudrun.model import Counters, DownloadRecords
 
 # 初始化日志
 logger = logging.getLogger('log')
@@ -62,3 +62,67 @@ def update_counterbyid(counter):
         db.session.commit()
     except OperationalError as e:
         logger.info("update_counterbyid errorMsg= {} ".format(e))
+
+
+def insert_download_record(record):
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("insert_download_record errorMsg= {} ".format(e))
+        db.session.rollback()
+        raise
+
+
+def update_download_record(record):
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("update_download_record errorMsg= {} ".format(e))
+        db.session.rollback()
+        raise
+
+
+def query_download_records(openid):
+    try:
+        return DownloadRecords.query.filter(DownloadRecords.openid == openid).order_by(
+            DownloadRecords.extracted_at.desc(),
+            DownloadRecords.id.desc(),
+        ).all()
+    except OperationalError as e:
+        logger.info("query_download_records errorMsg= {} ".format(e))
+        return []
+
+
+def query_download_record(openid, filename):
+    try:
+        return DownloadRecords.query.filter(
+            DownloadRecords.openid == openid,
+            DownloadRecords.status == 'success',
+            DownloadRecords.filename == filename,
+        ).first()
+    except OperationalError as e:
+        logger.info("query_download_record errorMsg= {} ".format(e))
+        return None
+
+
+def query_download_record_byid(openid, record_id):
+    try:
+        return DownloadRecords.query.filter(
+            DownloadRecords.openid == openid,
+            DownloadRecords.id == record_id,
+        ).first()
+    except OperationalError as e:
+        logger.info("query_download_record_byid errorMsg= {} ".format(e))
+        return None
+
+
+def delete_download_record(record):
+    try:
+        db.session.delete(record)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("delete_download_record errorMsg= {} ".format(e))
+        db.session.rollback()
+        raise
