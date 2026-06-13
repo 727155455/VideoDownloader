@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from pathlib import Path
 import re
 from urllib.parse import quote
@@ -34,6 +35,60 @@ def get_resolution(info):
         return '{}x{}'.format(width, height)
 
     return info.get('format_note')
+
+
+def build_file_url(filename):
+    return '{}api/files/{}'.format(request.url_root, quote(filename))
+
+
+def build_download_data(info, file_path, original_url, video_url, downloaded_at=None):
+    downloaded_at = downloaded_at or datetime.now().isoformat(timespec='seconds')
+
+    return {
+        'id': info.get('id'),
+        'title': info.get('title'),
+        'thumbnail': info.get('thumbnail'),
+        'duration': info.get('duration'),
+        'durationString': info.get('duration_string'),
+        'resolution': get_resolution(info),
+        'uploader': info.get('uploader'),
+        'webpageUrl': info.get('webpage_url'),
+        'originalUrl': original_url,
+        'downloadUrl': video_url,
+        'ext': file_path.suffix.lstrip('.'),
+        'filename': file_path.name,
+        'size': file_path.stat().st_size,
+        'downloadPath': '/api/files/{}'.format(file_path.name),
+        'fileUrl': build_file_url(file_path.name),
+        'downloadedAt': downloaded_at,
+    }
+
+
+def get_metadata_path(file_path):
+    return file_path.with_suffix(file_path.suffix + '.json')
+
+
+def save_download_record(data, file_path):
+    metadata_path = get_metadata_path(file_path)
+    with metadata_path.open('w', encoding='utf-8') as metadata_file:
+        json.dump(data, metadata_file, ensure_ascii=False)
+
+
+def load_download_record(metadata_path):
+    with metadata_path.open('r', encoding='utf-8') as metadata_file:
+        data = json.load(metadata_file)
+
+    filename = data.get('filename')
+    if filename:
+        file_path = DOWNLOAD_DIR / filename
+        if not file_path.exists():
+            return None
+        data['size'] = file_path.stat().st_size
+        data['downloadPath'] = '/api/files/{}'.format(filename)
+        data['fileUrl'] = build_file_url(filename)
+
+    data.setdefault('downloadedAt', datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat(timespec='seconds'))
+    return data
 
 
 @app.route('/')
@@ -123,17 +178,15 @@ def download_video():
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     ydl_opts = {
-        'format': params.get('format') or 'bv*+ba/b',
         'outtmpl': str(DOWNLOAD_DIR / '%(id)s.%(ext)s'),
         'merge_output_format': 'mp4',
         'noplaylist': True,
         'quiet': True,
         'no_warnings': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            'Referer': 'https://www.douyin.com/',
-        },
     }
+
+    if params.get('format'):
+        ydl_opts['format'] = params.get('format')
 
     if params.get('audioOnly') is True:
         ydl_opts.update({
@@ -164,25 +217,36 @@ def download_video():
     if not file_path.exists():
         return make_err_response('视频下载完成但未找到输出文件')
 
-    data = {
-        'id': info.get('id'),
-        'title': info.get('title'),
-        'thumbnail': info.get('thumbnail'),
-        'duration': info.get('duration'),
-        'durationString': info.get('duration_string'),
-        'resolution': get_resolution(info),
-        'uploader': info.get('uploader'),
-        'webpageUrl': info.get('webpage_url'),
-        'originalUrl': original_url,
-        'downloadUrl': video_url,
-        'ext': file_path.suffix.lstrip('.'),
-        'filename': file_path.name,
-        'size': file_path.stat().st_size,
-        'downloadPath': '/api/files/{}'.format(file_path.name),
-        'fileUrl': '{}api/files/{}'.format(request.url_root, quote(file_path.name)),
-    }
+    data = build_download_data(info, file_path, original_url, video_url)
+    save_download_record(data, file_path)
 
     return make_succ_response(data)
+
+
+@app.route('/api/downloads', methods=['GET'])
+def list_downloads():
+    """
+    返回下载记录，按下载时间降序排列。
+    """
+    if not DOWNLOAD_DIR.exists():
+        return make_succ_response([])
+
+    metadata_paths = sorted(
+        DOWNLOAD_DIR.glob('*.json'),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+
+    downloads = []
+    for metadata_path in metadata_paths:
+        try:
+            record = load_download_record(metadata_path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if record:
+            downloads.append(record)
+
+    return make_succ_response(downloads)
 
 
 @app.route('/api/files/<path:filename>', methods=['GET'])
