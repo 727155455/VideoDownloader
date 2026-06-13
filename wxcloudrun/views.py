@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+import re
 
 from flask import render_template, request, send_from_directory
 from run import app
@@ -11,6 +12,14 @@ from yt_dlp.utils import DownloadError
 
 
 DOWNLOAD_DIR = Path('/tmp/downloads')
+URL_PATTERN = re.compile(r'https?://[^\s]+')
+
+
+def extract_video_url(text):
+    match = URL_PATTERN.search(text or '')
+    if not match:
+        return text
+    return match.group(0).rstrip('，。,.!！?？;；:：')
 
 
 @app.route('/')
@@ -91,6 +100,12 @@ def download_video():
     if not video_url:
         return make_err_response('缺少url参数')
 
+    original_url = video_url
+    video_url = extract_video_url(video_url)
+
+    if not video_url:
+        return make_err_response('未识别到有效视频链接')
+
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     ydl_opts = {
@@ -100,6 +115,10 @@ def download_video():
         'noplaylist': True,
         'quiet': True,
         'no_warnings': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'Referer': 'https://www.douyin.com/',
+        },
     }
 
     if params.get('audioOnly') is True:
@@ -138,6 +157,8 @@ def download_video():
         'durationString': info.get('duration_string'),
         'uploader': info.get('uploader'),
         'webpageUrl': info.get('webpage_url'),
+        'originalUrl': original_url,
+        'downloadUrl': video_url,
         'ext': file_path.suffix.lstrip('.'),
         'filename': file_path.name,
         'size': file_path.stat().st_size,

@@ -8,10 +8,14 @@ FROM python:3.10-slim
 
 # 使用 HTTPS 协议访问容器云调用证书安装
 RUN apt-get update \
-&& apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+&& apt-get install -y --no-install-recommends ca-certificates curl ffmpeg git zsh \
 && rm -rf /var/lib/apt/lists/*
 
-# 安装系统依赖包。
+# 安装 oh-my-zsh，便于进入容器后调试。
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
+&& chsh -s /bin/zsh root
+
+SHELL ["/bin/zsh", "-c"]
 
 # 拷贝当前项目到/app目录下（.dockerignore中文件除外）
 COPY . /app
