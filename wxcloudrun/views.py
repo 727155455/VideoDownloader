@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -15,6 +15,7 @@ from yt_dlp.utils import DownloadError
 
 DOWNLOAD_DIR = Path('/tmp/downloads')
 URL_PATTERN = re.compile(r'https?://[^\s]+')
+CHINA_TZ = timezone(timedelta(hours=8))
 
 
 def extract_video_url(text):
@@ -47,8 +48,18 @@ def build_file_url(filename):
     return '{}://{}/api/files/{}'.format(scheme, host, quote(filename))
 
 
+def get_china_time(timestamp=None):
+    if timestamp is None:
+        return datetime.now(CHINA_TZ)
+    return datetime.fromtimestamp(timestamp, CHINA_TZ)
+
+
+def format_china_time(timestamp=None):
+    return get_china_time(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+
 def build_download_data(info, file_path, original_url, video_url, downloaded_at=None):
-    downloaded_at = downloaded_at or datetime.now().isoformat(timespec='seconds')
+    downloaded_at = downloaded_at or format_china_time()
 
     return {
         'id': info.get('id'),
@@ -93,7 +104,7 @@ def load_download_record(metadata_path):
         data['downloadPath'] = '/api/files/{}'.format(filename)
         data['fileUrl'] = build_file_url(filename)
 
-    data.setdefault('downloadedAt', datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat(timespec='seconds'))
+    data['downloadedAt'] = format_china_time(metadata_path.stat().st_mtime)
     return data
 
 
@@ -253,6 +264,38 @@ def list_downloads():
             downloads.append(record)
 
     return make_succ_response(downloads)
+
+
+@app.route('/api/downloads/delete', methods=['POST'])
+def delete_download():
+    """
+    删除下载文件及对应记录。
+    """
+    params = request.get_json(silent=True) or {}
+    filename = params.get('filename')
+
+    if not filename:
+        return make_err_response('缺少filename参数')
+
+    safe_filename = Path(filename).name
+    file_path = DOWNLOAD_DIR / safe_filename
+    metadata_path = get_metadata_path(file_path)
+
+    deleted = False
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            deleted = True
+        if metadata_path.exists():
+            metadata_path.unlink()
+            deleted = True
+    except OSError as err:
+        return make_err_response('删除失败: {}'.format(str(err)))
+
+    if not deleted:
+        return make_err_response('文件不存在')
+
+    return make_succ_empty_response()
 
 
 @app.route('/api/files/<path:filename>', methods=['GET'])
