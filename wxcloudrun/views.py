@@ -7,7 +7,6 @@ from flask import render_template, request, send_from_directory
 from run import app
 from wxcloudrun.dao import (
     delete_counterbyid,
-    delete_download_record,
     insert_counter,
     insert_download_record,
     query_counterbyid,
@@ -25,14 +24,30 @@ from yt_dlp.utils import DownloadError
 
 DOWNLOAD_DIR = Path('/tmp/downloads')
 URL_PATTERN = re.compile(r'https?://[^\s]+')
+DOUYIN_SHORT_URL_PATTERN = re.compile(r'https?://v\.douyin\.com/[A-Za-z0-9_-]+/?')
+KUAISHOU_SHORT_URL_PATTERN = re.compile(r'https?://v\.kuaishou\.com/[A-Za-z0-9_-]+/?')
 CHINA_TZ = timezone(timedelta(hours=8))
 
 
 def extract_video_url(text):
-    match = URL_PATTERN.search(text or '')
+    cleaned_text = (text or '').replace('\u200b', '').replace('\ufeff', '').strip()
+
+    match = DOUYIN_SHORT_URL_PATTERN.search(cleaned_text)
+    if match:
+        return match.group(0)
+
+    match = KUAISHOU_SHORT_URL_PATTERN.search(cleaned_text)
+    if match:
+        return match.group(0)
+
+    match = URL_PATTERN.search(cleaned_text)
     if not match:
-        return text
-    return match.group(0).rstrip('，。,.!！?？;；:：')
+        return cleaned_text
+    return match.group(0).rstrip('，。,.!！?？;；:：）)]}')
+
+
+def get_user_friendly_extract_error():
+    return '视频链接解析失败，建议直接复制视频链接后再次尝试'
 
 
 def get_resolution(info):
@@ -291,19 +306,19 @@ def download_video():
         record.status = 'failed'
         record.error_msg = '视频下载失败: {}'.format(str(err))
         update_download_record(record)
-        return make_err_response(record.error_msg)
+        return make_err_response(get_user_friendly_extract_error())
     except Exception as err:
         record.status = 'failed'
         record.error_msg = '服务异常: {}'.format(str(err))
         update_download_record(record)
-        return make_err_response(record.error_msg)
+        return make_err_response(get_user_friendly_extract_error())
 
     file_path = Path(filename)
     if not file_path.exists():
         record.status = 'failed'
         record.error_msg = '视频下载完成但未找到输出文件'
         update_download_record(record)
-        return make_err_response(record.error_msg)
+        return make_err_response(get_user_friendly_extract_error())
 
     data = build_download_data(info, file_path, original_url, video_url)
     record.status = 'success'
@@ -370,7 +385,9 @@ def delete_download():
     try:
         if file_path and file_path.exists():
             file_path.unlink()
-        delete_download_record(record)
+        record.is_deleted = True
+        record.deleted_at = get_china_time().replace(tzinfo=None)
+        update_download_record(record)
     except OSError as err:
         return make_err_response('删除失败: {}'.format(str(err)))
 

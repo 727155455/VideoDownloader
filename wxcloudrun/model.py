@@ -40,6 +40,8 @@ class DownloadRecords(db.Model):
     file_url = db.Column('fileUrl', db.Text)
     download_path = db.Column('downloadPath', db.Text)
     download_count = db.Column('downloadCount', db.Integer, nullable=False, default=0)
+    is_deleted = db.Column('isDeleted', db.Boolean, nullable=False, default=False)
+    deleted_at = db.Column('deletedAt', db.DateTime)
     extracted_at = db.Column('extractedAt', db.DateTime, nullable=False, default=datetime.now)
     created_at = db.Column('createdAt', db.TIMESTAMP, nullable=False, default=datetime.now)
     updated_at = db.Column('updatedAt', db.TIMESTAMP, nullable=False, default=datetime.now, onupdate=datetime.now)

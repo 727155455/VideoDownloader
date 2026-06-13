@@ -86,7 +86,10 @@ def update_download_record(record):
 
 def query_download_records(openid):
     try:
-        return DownloadRecords.query.filter(DownloadRecords.openid == openid).order_by(
+        return DownloadRecords.query.filter(
+            DownloadRecords.openid == openid,
+            DownloadRecords.is_deleted == False,
+        ).order_by(
             DownloadRecords.extracted_at.desc(),
             DownloadRecords.id.desc(),
         ).all()
@@ -100,6 +103,7 @@ def query_download_record(openid, filename):
         return DownloadRecords.query.filter(
             DownloadRecords.openid == openid,
             DownloadRecords.status == 'success',
+            DownloadRecords.is_deleted == False,
             DownloadRecords.filename == filename,
         ).first()
     except OperationalError as e:
