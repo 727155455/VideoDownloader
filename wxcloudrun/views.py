@@ -38,7 +38,13 @@ def get_resolution(info):
 
 
 def build_file_url(filename):
-    return '{}api/files/{}'.format(request.url_root, quote(filename))
+    scheme = request.headers.get('X-Forwarded-Proto') or request.scheme
+    host = request.headers.get('X-Forwarded-Host') or request.host
+
+    if host.endswith('.run.wxcloudrun.com'):
+        scheme = 'https'
+
+    return '{}://{}/api/files/{}'.format(scheme, host, quote(filename))
 
 
 def build_download_data(info, file_path, original_url, video_url, downloaded_at=None):
