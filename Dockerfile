@@ -13,7 +13,9 @@ RUN apt-get update \
 
 # 安装 oh-my-zsh，便于进入容器后调试。
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
-&& chsh -s /bin/zsh root
+&& chsh -s /bin/zsh root \
+&& printf '\nalias ll="ls -alF"\n' >> /root/.zshrc \
+&& printf 'export SHELL=/bin/zsh\n' > /etc/profile.d/default-shell.sh
 
 SHELL ["/bin/zsh", "-c"]
 

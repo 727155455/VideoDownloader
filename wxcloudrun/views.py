@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 import re
+from urllib.parse import quote
 
 from flask import render_template, request, send_from_directory
 from run import app
@@ -20,6 +21,19 @@ def extract_video_url(text):
     if not match:
         return text
     return match.group(0).rstrip('，。,.!！?？;；:：')
+
+
+def get_resolution(info):
+    resolution = info.get('resolution')
+    if resolution:
+        return resolution
+
+    width = info.get('width')
+    height = info.get('height')
+    if width and height:
+        return '{}x{}'.format(width, height)
+
+    return info.get('format_note')
 
 
 @app.route('/')
@@ -153,8 +167,10 @@ def download_video():
     data = {
         'id': info.get('id'),
         'title': info.get('title'),
+        'thumbnail': info.get('thumbnail'),
         'duration': info.get('duration'),
         'durationString': info.get('duration_string'),
+        'resolution': get_resolution(info),
         'uploader': info.get('uploader'),
         'webpageUrl': info.get('webpage_url'),
         'originalUrl': original_url,
@@ -163,6 +179,7 @@ def download_video():
         'filename': file_path.name,
         'size': file_path.stat().st_size,
         'downloadPath': '/api/files/{}'.format(file_path.name),
+        'fileUrl': '{}api/files/{}'.format(request.url_root, quote(file_path.name)),
     }
 
     return make_succ_response(data)
